@@ -10,9 +10,9 @@ const connection = mysql.createConnection({
     password: 'Password123!',
     database: 'employees_db'
   });
-//   connection.connect(err => {
-//     if (err) throw err;
-//     console.log('connected as id ' + connection.threadId);
-// });
+  connection.connect(err => {
+    if (err) throw err;
+    console.log('connected as id ' + connection.threadId);
+});
 // EXPORT MODULE
 module.exports = connection;
