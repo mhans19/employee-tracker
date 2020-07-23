@@ -1,9 +1,45 @@
 // DEPENDENCIES 
     const express = require('express');
     const inquirer = require("inquirer");
-    const consoleTable = require('console.table');
+    const consoletable = require('console.table');
     const connection = require('./db/database');
     const router = express.Router();
+// GLOBAL OBJECTS
+    const deptList = [];
+    const roleList = [];
+    const mngrList = [];
+// GLOBAL FUNCTIONS
+    // List of all department options
+    function deptOpts() {
+        connection.promise().query(`SELECT * FROM departments;`, function (err, res) {
+                                if (err) throw err
+                                for (var i = 0; i < res.length; i++){
+                                    deptList.push(res[i].name);
+                                }
+                                })
+                                return deptList;
+    };
+    // List of all role options
+    function roleOpts() {
+        connection.promise().query(`SELECT * FROM roles;`, function (err, res) {
+                                if (err) throw err
+                                for (var i = 0; i < res.length; i++){
+                                    roleList.push(res[i].title);
+                                }
+                                })
+                                return roleList;
+    };
+    // List of all manager options
+    function mngrOpts() {
+        connection.promise().query(`SELECT * FROM employees;`, function (err, res) {
+                                if (err) throw err
+                                for (var i = 0; i < res.length; i++){
+                                    let name = (res[i].first_name).concat(' ').concat(res[i].last_name)
+                                    mngrList.push(name);
+                                }
+                                })
+                                return mngrList;
+    };
 // INQUIRE PROMPT FOR MAIN MENU
     const startMenu = () => {
         return inquirer.prompt([
@@ -15,7 +51,7 @@
             }
         ])
     };        
-// INQUIRE PROMPT FOR CREAT A RECORD
+// INQUIRE PROMPT FOR CREATE A RECORD
     const createMenu = () => {
         return inquirer.prompt([
             { // CREATE LOGIC
@@ -50,7 +86,7 @@
             { // CREATE ROLE - TITLE
                 type: "input",
                 name: "createRoleTitle",
-                message: "What is the new role title?",
+                message: "What is the title of the new role?",
                 validate: createRoleTitle => {
                     if (createRoleTitle) {
                     return true;
@@ -60,7 +96,7 @@
                     }
                 }
             },
-            { // CREATE ROLE - SALARY
+            { // CREATE ROLE - SALARY                                                                       //// ADD NUMERIC VALIDATION
                 type: "input",
                 name: "createRoleSalary",
                 message: "What is the salary for the new role?",
@@ -73,18 +109,11 @@
                     }
                 }
             },
-            { // CREATE ROLE - DEPARTMENT_ID
-                type: "input",
+            { // CREATE ROLE - DEPARTMENT_CHOICE
+                type: "list",
                 name: "createRoleDepartment",
-                message: "What Department ID will the role belong to (See table above)?",
-                validate: createRoleDepartment => {
-                    if (createRoleDepartment) {
-                    return true;
-                    } else {
-                    console.log('Please enter the department!');
-                    return false;
-                    }
-                }
+                message: "What Department does the role belong to?",
+                choices: deptOpts()
             }
         ])
     };        
@@ -118,30 +147,16 @@
                 }
             },
             { // Create a new employee - ROLE
-                type: "input",
+                type: "list",
                 name: "createEmployeeRole",
                 message: "Which role will this employee be assigned?",
-                validate: createEmployeeRole => {
-                    if (createEmployeeRole) {
-                    return true;
-                    } else {
-                    console.log('Please enter the employee role!');
-                    return false;
-                    }
-                }
+                choices: roleOpts()
             },
             { // Create a new employee - MANAGER
-                type: "input",
+                type: "list",
                 name: "createEmployeeManager",
                 message: "Who will be this employee's manager?",
-                validate: createEmployeeManager => {
-                    if (createEmployeeManager) {
-                    return true;
-                    } else {
-                    console.log('Please enter the manager!');
-                    return false;
-                    }
-                }
+                choices: mngrOpts()
             }
         ])
     };  
@@ -159,18 +174,11 @@
 // INQUIRE PROMPT FOR UPDATE DEPTARTMENT
 const updateDept = () => {
     return inquirer.prompt([
-        { // UPDATE DEPT - ID
-            type: "input",
-            name: "updateDepartmentID",
-            message: "What is the ID of the department to update?",
-            validate: updateDepartmentID => {
-                if (updateDepartmentID) {
-                return true;
-                } else {
-                console.log('Please enter the department ID!');
-                return false;
-                }
-            }
+        { // UPDATE DEPT - CHOICE
+            type: "list",
+            name: "updateDepartment",
+            message: "What department do you want to update?",
+            choices: deptOpts()
         },
         { // UPDATE DEPT - NAME
             type: "input",
@@ -190,18 +198,11 @@ const updateDept = () => {
 // INQUIRE PROMPT FOR UPDATE ROLE
 const updateRole = () => {
     return inquirer.prompt([
-        { // UPDATE ROLE - ID
-            type: "input",
+        { // UPDATE ROLE - CHOICE
+            type: "list",
             name: "updateRoleID",
-            message: "What is the ID of the role to update?",
-            validate: updateRoleID => {
-                if (updateRoleID) {
-                return true;
-                } else {
-                console.log('Please enter the role ID!');
-                return false;
-                }
-            }
+            message: "Which role would you like to update?",
+            choices: roleOpts()
         },
         {// UPDATE SELECTION
             type: "list",
@@ -226,9 +227,10 @@ const updateRole = () => {
             }
         },
         { // UPDATE DEPT - DEPARTMENT
-            type: "input",
+            type: "list",
             name: "updateRoleDept",
-            message: "What is the updated department ID for this role?",            
+            message: "What is the updated department for this role?",  
+            choices: deptOpts(),          
             when: function(responses) {
                 return responses.updateRoleList === "Department";
             }
@@ -238,18 +240,11 @@ const updateRole = () => {
 // INQUIRE PROMPT FOR UPDATE EMPLOYEE
 const updateEmployee = () => {
     return inquirer.prompt([
-        { // UPDATE EMPLOYEE - ID
-            type: "input",
+        { // UPDATE EMPLOYEE - CHOICE
+            type: "list",
             name: "updateEmployeeID",
-            message: "What is the ID of the employee to update?",
-            validate: updateEmployeeID => {
-                if (updateEmployeeID) {
-                return true;
-                } else {
-                console.log('Please enter the employee ID!');
-                return false;
-                }
-            }
+            message: "Which employee do you want to update update?",
+            choices: mngrOpts()
         },
         {// UPDATE SELECTION
             type: "list",
@@ -274,17 +269,19 @@ const updateEmployee = () => {
             }
         },
         { // UPDATE EMOLOYEE - ROLE
-            type: "input",
+            type: "list",
             name: "updateEmployeeRole",
-            message: "What is the updated role ID?",            
+            message: "What is the updated role?",  
+            choices: roleOpts(),          
             when: function(responses) {
                 return responses.updateEmployeeList === "Role";
             }
         },
         { // UPDATE EMOLOYEE - MANAGER
-            type: "input",
+            type: "list",
             name: "updateEmployeeManager",
-            message: "What is the updated Manager ID?",            
+            message: "What is the updated manager?",     
+            choices: mngrOpts(),       
             when: function(responses) {
                 return responses.updateEmployeeList === "Manager";
             }
@@ -299,87 +296,6 @@ const viewMenu = () => {
             name: "viewMenu",
             message: "What would you like to view?",
             choices: ["Departments", "Roles", "Employees"]
-        }
-    ])
-};
-// INQUIRE PROMPT TO VIEW DEPARTMENTS
-const viewDept = () => {
-    return inquirer.prompt([
-        { // VIEW DEPT
-            type: "list",
-            name: "viewDeptList",
-            message: "Please select what you'd like to view.",
-            choices: ["All Departments", "Single Department"]
-        },
-        { // VIEW SINGLE DEPT
-            type: "input",
-            name: "viewDeptID",
-            message: "What is the ID of the department you'd like to view?",            
-            when: function(responses) {
-                return responses.viewDeptList === "Single Department";
-            },
-            validate: viewDeptID => {
-                if (viewDeptID) {
-                return true;
-                } else {
-                console.log('Please enter the department ID!');
-                return false;
-                }
-            }
-        }
-    ])
-};
-// INQUIRE PROMPT TO VIEW ROLES
-const viewRole = () => {
-    return inquirer.prompt([
-        { // VIEW ROLES
-            type: "list",
-            name: "viewRoleList",
-            message: "Please select what you'd like to view.",
-            choices: ["All Roles", "Single Role"]
-        },
-        { // VIEW SINGLE ROLE
-            type: "input",
-            name: "viewRoleID",
-            message: "What is the ID of the role you'd like to view?",            
-            when: function(responses) {
-                return responses.viewRoleList === "Single Role";
-            },
-            validate: viewRoleID => {
-                if (viewRoleID) {
-                return true;
-                } else {
-                console.log('Please enter the Role ID!');
-                return false;
-                }
-            }
-        }
-    ])
-};
-// INQUIRE PROMPT TO VIEW EMPLOYEES
-const viewEmployee = () => {
-    return inquirer.prompt([
-        { // VIEW EMPLOYEES
-            type: "list",
-            name: "viewEmployeeList",
-            message: "Please select what you'd like to view.",
-            choices: ["All Employees", "Single Employee"]
-        },
-        { // VIEW SINGLE EMPLOYEE
-            type: "input",
-            name: "viewEmployeeID",
-            message: "What is the ID of the employee you'd like to view?",            
-            when: function(responses) {
-                return responses.viewEmployeeList === "Single Employee";
-            },
-            validate: viewEmployeeID => {
-                if (viewEmployeeID) {
-                return true;
-                } else {
-                console.log('Please enter the Employee ID!');
-                return false;
-                }
-            }
         }
     ])
 };
@@ -398,19 +314,12 @@ const deleteMenu = () => {
 const deleteDept = () => {
     return inquirer.prompt([
         { // DELETE DEPARTMENT
-            type: "input",
+            type: "list",
             name: "deleteDept",
-            message: "What is the ID of the department to delete?",            
+            message: "What department would you like to delete?",   
+            choices: deptOpts(),         
             when: function(responses) {
                 return responses.deleteMenu === "Department";
-            },
-            validate: deleteMenu => {
-                if (deleteMenu) {
-                return true;
-                } else {
-                console.log('Please enter the department ID!');
-                return false;
-                }
             }
         }
     ])
@@ -419,19 +328,12 @@ const deleteDept = () => {
 const deleteRole = () => {
     return inquirer.prompt([
         { // DELETE ROLE
-            type: "input",
+            type: "list",
             name: "deleteRole",
-            message: "What is the ID of the role to delete?",            
+            message: "What role do you want to delete?",  
+            choices: roleOpts(),          
             when: function(responses) {
                 return responses.deleteMenu === "Role";
-            },
-            validate: deleteRole => {
-                if (deleteRole) {
-                return true;
-                } else {
-                console.log('Please enter the role ID!');
-                return false;
-                }
             }
         }
     ])
@@ -440,47 +342,17 @@ const deleteRole = () => {
 const deleteEmployee = () => {
     return inquirer.prompt([
         { // DELETE EMPLOYEE
-            type: "input",
+            type: "list",
             name: "deleteEmployee",
-            message: "What is the ID of the employee to delete?",            
+            message: "What employee do you want to delete?",    
+            choices: mngrOpts(),        
             when: function(responses) {
                 return responses.deleteMenu === "Employee";
-            },
-            validate: deleteEmployee => {
-                if (deleteEmployee) {
-                return true;
-                } else {
-                console.log('Please enter the employee ID!');
-                return false;
-                }
             }
         }
     ])
 };
-// BACK TO MAIN MENU
-const returnMenu = () => {
-    inquirer.prompt[(
-        {// RETURN TO MAIN MENU
-            type: "confirm",
-            name: "returnMenu",
-            message: "Would you like to do something else?",
-            default: true
-        }
-    )]
-    .then(choice => {
-        if (choice.returnMenu === true){
-            startMenu();
-        } else {
-            console.log(`
-            ===========================
-            THANK YOU. HAVE A NICE DAY!
-            ===========================
-            `);
-            process.exit();
-        }
-    })
-};
-
+// MAIN APPLICATION
 console.log(`
 ======================
    EMPLOYEE TRACKER
@@ -492,62 +364,108 @@ startMenu() // Prompt main menu
         createMenu()
         .then(createMenuData => {
             if (createMenuData.createMenu === "New department"){
-                createDept();
-                return;
+                createDept()
+                .then(responses => {
+                    let post = {name: responses.createDepartment};
+                    connection.query(`INSERT INTO departments SET ?`, post);
+                    console.log(post.name + " was added as a new department!");
+                })                
             } else if (createMenuData.createMenu === "New role"){
-                createRole();
-                return;
+                createRole()
+                .then(responses => {
+                    let department = deptOpts().indexOf(responses.createRoleDepartment) + 1
+                    let post = {title: responses.createRoleTitle,
+                                salary: responses.createRoleSalary,
+                                department_id: department
+                                };
+                    connection.query(`INSERT INTO roles SET ?`, post);
+                    console.log(post.title + " was added as a new role!");
+                })
             } else if (createMenuData.createMenu === "New employee"){
-                createEmployee();
-                return;
-            };   
-        })
-        return;
+                createEmployee()
+                .then(responses => {
+                    let role = roleOpts().indexOf(responses.createEmployeeRole) + 1
+                    let manager = mngrOpts().indexOf(responses.createEmployeeManager) + 1
+                    let post = {first_name: responses.createEmployeeFirst,
+                                last_name: responses.createEmployeeLast,
+                                role_id: role,
+                                manager_id: manager
+                                };
+                    connection.query(`INSERT INTO employees SET ?`, post);
+                    console.log(post.first_name + " " + post.last_name + " was added as a new employee!");
+                })
+            } 
+        });
     } else if (menuData.mainMenu === "Update a record"){
         updateMenu()
         .then(updateMenuData => {
             if (updateMenuData.updateMenu === "Department"){
-                updateDept();
-                return;
+                updateDept()
+                .then(responses => {
+                    let department = deptOpts().indexOf(responses.updateDepartment) + 1
+                    let post = {name: responses.updateDepartmentName,
+                                id: department};
+                                connection.query(`UPDATE departments SET departments.name = ? WHERE id = ?;`, post);
+                                console.log("You updated the department!");
+                })
             } else if (updateMenuData.updateMenu === "Role"){
-                updateRole();
-                return;
+                return updateRole();
             } else if (updateMenuData.updateMenu === "Employee"){
-                updateEmployee();
-                return;
+                return updateEmployee();
             };   
         })
-        return;
     } else if (menuData.mainMenu === "View a record"){
         viewMenu()
         .then(viewMenuData => {
             if (viewMenuData.viewMenu === "Departments"){
-                viewDept();
-                return;
+                    connection.promise().query(`SELECT id AS ID,
+                                                    name AS Department 
+                                                FROM departments 
+                                                ORDER BY id;`)
+                                                .then( ([results]) => {
+                                                    console.table(results);
+                                                    return startMenu(); 
+                                                })                
             } else if (viewMenuData.viewMenu === "Roles"){
-                viewRole();
-                return;
+                connection.promise().query(`SELECT roles.id AS ID,
+                                                    roles.title AS Role ,
+                                                    roles.salary AS Salary,
+                                                    departments.name AS Department
+                                            FROM roles 
+                                                    LEFT JOIN departments ON roles.department_id = departments.id
+                                            ORDER BY id;`)
+                                            .then( ([results]) => {
+                                                console.table(results);
+                                                return startMenu(); 
+                                            })    
             } else if (viewMenuData.viewMenu === "Employees"){
-                viewEmployee();
-                return;
+                connection.promise().query(`SELECT employees.id AS ID,
+                                                    CONCAT(employees.first_name, ' ', employees.last_name) AS Name,
+                                                    roles.title AS Role,
+                                                    roles.salary AS Salary,
+                                                    CONCAT(manager.first_name, ' ', manager.last_name) AS Manager,
+                                                    departments.name AS Department
+                                            FROM employees 
+                                                LEFT JOIN roles ON employees.role_id = roles.id
+                                                LEFT JOIN departments ON roles.department_id = departments.id
+                                                LEFT JOIN employees manager ON employees.manager_id = manager.id;`)
+                                            .then( ([results]) => {
+                                                console.table(results);
+                                                return startMenu(); 
+                                            })  
             };   
         })
-        return;
     } else if (menuData.mainMenu === "Delete a record") {
-        deleteMenu()
+        return deleteMenu()
         .then(deleteMenuData => {
             if (deleteMenuData.deleteMenu === "Department"){
-                deleteDept();
-                return;
+                return deleteDept();
             } else if (deleteMenuData.deleteMenu === "Role"){
-                deleteRole();
-                return;
+                return deleteRole();
             } else if (deleteMenuData.deleteMenu === "Employee"){
-                deleteEmployee();
-                return;
+                return deleteEmployee();
             }
         })
-        return;
     } else if (menuData.mainMenu === "Exit"){
         console.log(`
         ===========================
@@ -557,4 +475,3 @@ startMenu() // Prompt main menu
         process.exit();
     }
 });
-returnMenu();
