@@ -1,10 +1,7 @@
 // DEPENDENCIES 
-    const express = require('express');
     const inquirer = require("inquirer");
-    const consoletable = require('console.table');
+    const cTable = require('console.table');
     const connection = require('./db/database');
-    // const { changeUser } = require('./db/database');
-    const router = express.Router();
 // GLOBAL FUNCTIONS
     // List of all department options
     const deptOpts = () => {
@@ -29,7 +26,7 @@
         return roleList;
     };
     // List of all manager options
-    function mngrOpts() {
+    function empOpts() {
         const mngrList = [];
         connection.promise().query(`SELECT * FROM employees;`, function (err, res) {
             if (err) {throw err}
@@ -82,6 +79,15 @@
             }
         })
     };
+// EXIT FUNCTION
+const exitMenu = () => {
+    console.log(`
+    ===========================
+    THANK YOU. HAVE A NICE DAY!
+    ===========================
+    `);
+    process.exit();
+};
 // CREATE FUNCTIONS
     // CREATE A RECORD MENU
     const createMenu = () => {
@@ -90,7 +96,7 @@
                 type: "list",
                 name: "createMenu",
                 message: "What would you like to create?",
-                choices: ["New department", "New role", "New employee"]
+                choices: ["New department", "New role", "New employee", "Main Menu"]
             }
         ])
         .then(response => {
@@ -100,7 +106,9 @@
                 createRole()
             } else if (response.createMenu === "New employee"){
                 createEmployee()
-            } 
+            } else if (response.createMenu == "Main Menu"){
+                startMenu()
+            }
         })
     };
     // CREATE DEPTARTMENT
@@ -213,12 +221,12 @@
                 type: "list",
                 name: "createEmployeeManager",
                 message: "Who will be this employee's manager?",
-                choices: mngrOpts()
+                choices: empOpts()
             }
         ])
         .then(responses => {
             let role = roleOpts().indexOf(responses.createEmployeeRole) + 1
-            let manager = mngrOpts().indexOf(responses.createEmployeeManager) + 1
+            let manager = empOpts().indexOf(responses.createEmployeeManager) + 1
             let post = {first_name: responses.createEmployeeFirst,
                         last_name: responses.createEmployeeLast,
                         role_id: role,
@@ -237,7 +245,7 @@
                 type: "list",
                 name: "updateMenu",
                 message: "What would you like to update?",
-                choices: ["Department", "Role", "Employee"]
+                choices: ["Department", "Role", "Employee", "Main Menu"]
             }
         ])
         .then(response => {
@@ -247,7 +255,9 @@
                 updateRole()
             } else if (response.updateMenu === "Employee"){
                 updateEmployee()
-            } 
+            } else if (response.updateMenu === "Main Menu"){
+                startMenu()
+            }
         })
     };
     // UPDATE DEPTARTMENT
@@ -274,26 +284,13 @@
             }
         ])
         .then(response => {
-                let oldDept = response.updateDepartment;
+                let targetDept = response.updateDepartment;
                 let newDept = response.updateDepartmentName;
-            connection.query(`UPDATE departments SET departments.name = ? WHERE name = ?;`, [newDept, oldDept]);
-            console.log("You updated the department!");
+            connection.query(`UPDATE departments SET departments.name = ? WHERE name = ?;`, [newDept, targetDept]);
+            console.log("You updated the department name from " + targetDept + " to " + newDept);
+            return returnMenu();
         })
     };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // UPDATE ROLE
     const updateRole = () => {
         return inquirer.prompt([
@@ -335,6 +332,27 @@
                 choices: roleOpts()
             }
         ])
+        .then(response => {
+            if (response.updateRoleList === "Title"){
+                let targetRole = response.updateRoleID;
+                let newTitle = response.updateRoleTitle;
+                connection.query(`UPDATE roles SET roles.title = ? WHERE title = ?;`, [newTitle, targetRole]);
+                console.log("You updated the role title from " + targetRole + " to " + newTitle);
+                return returnMenu();
+            } else if (response.updateRoleList === "Salary"){
+                let targetRole = response.updateRoleID;
+                let newSalary = response.updateRoleSalary;
+                connection.query(`UPDATE roles SET roles.salary = ? WHERE title = ?;`, [newSalary, targetRole]);
+                console.log("For the " + targetRole + " role, you updated the salary to " + newSalary);
+                return returnMenu();
+            } else if (response.updateRoleList === "Department"){
+                let targetRole = response.updateRoleID;
+                let newDept = response.updateRoleDept;
+                connection.query(`UPDATE roles SET roles.department_id = ? WHERE title = ?;`, [newDept, targetRole]);
+                console.log("For the " + targetRole + " role, you updated the department to " + newDept);
+                return returnMenu();
+            }
+        })
     };
     // UPDATE EMPLOYEE
     const updateEmployee = () => {
@@ -374,7 +392,7 @@
                 type: "list",
                 name: "updateEmployeeManager",
                 message: "What is the updated manager?",     
-                choices: mngrOpts(),       
+                choices: empOpts(),       
                 when: function(responses) {
                     return responses.updateEmployeeList === "Manager";
                 }
@@ -383,9 +401,36 @@
                 type: "list",
                 name: "updateEmployeeID",
                 message: "Which employee do you want to update this record for?",
-                choices: mngrOpts()
+                choices: empOpts()
             }
         ])
+        .then(response => {
+            if (response.updateEmployeeList === "First Name"){
+                let targetEmployee = response.updateEmployeeID;
+                let newFirst = response.updateEmployeeFirst;
+                connection.query(`UPDATE employees SET employees.first_name = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newFirst, targetEmployee]);
+                console.log("You updated " + targetEmployee + "'s first name to " + newFirst);
+                return returnMenu();
+            } else if (response.updateEmployeeList === "Last Name"){
+                let targetEmployee = response.updateEmployeeID;
+                let newLast = response.updateEmployeeLast;
+                connection.query(`UPDATE employees SET employees.last_name = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newLast, targetEmployee]);
+                console.log("You updated " + targetEmployee + "'s last name to " + newLast);
+                return returnMenu();
+            } else if (response.updateEmployeeList === "Role"){
+                let targetEmployee = response.updateEmployeeID;
+                let newRole = response.updateEmployeeRole;
+                connection.query(`UPDATE employees SET employees.role_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newRole, targetEmployee]);
+                console.log("You updated " + targetEmployee + "'s role to " + newRole);
+                return returnMenu();
+            } else if (response.updateEmployeeList === "Manager"){                                                                //// NOT SURE THIS WORKS
+                let targetEmployee = response.updateEmployeeID;
+                let newManager = response.updateEmployeeManager;
+                connection.query(`UPDATE employees SET employees.manager_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newManager, targetEmployee]);
+                console.log("You updated " + targetEmployee + "'s manager to " + newManager);
+                return returnMenu();
+            }
+        })
     };
 // VIEW FUNCTIONS
     // VIEW RECORDS
@@ -395,7 +440,25 @@
                 type: "list",
                 name: "viewMenu",
                 message: "What would you like to view?",
-                choices: ["Departments", "Roles", "Employees"]
+                choices: ["Departments", "Roles", "Employees", "Employees by Manager", "Employees by Department", "Total Utilized Budget", "Main Menu"]
+            },
+            { // EMPLOYEES BY MANAGER
+                type: "list",
+                name: "viewEmpByMngr",
+                message: "For which manager would you like to view the employees?",
+                choices: empOpts(),
+                when: function(responses) {
+                    return responses.viewMenu === "Employees by Manager";
+                }
+            },
+            { // EMPLOYEES BY DEPARTMENT
+                type: "list",
+                name: "viewEmpByDept",
+                message: "For which department would you like to view the employees?",
+                choices: deptOpts(),
+                when: function(responses) {
+                    return responses.viewMenu === "Employees by Department";
+                }
             }
         ])
         .then(response => {
@@ -435,24 +498,170 @@
                                                 console.table(results);
                                                 return returnMenu(); 
                                             })  
-            }; 
+            } else if (response.viewMenu === "Employees by Manager"){
+                let targetManager = response.viewEmpByMngr;
+                connection.promise().query(`SELECT employees.id AS ID,
+                                        CONCAT(employees.first_name, ' ', employees.last_name) AS Name,
+                                        roles.title AS Role,
+                                        roles.salary AS Salary,
+                                        CONCAT(manager.first_name, ' ', manager.last_name) AS Manager,
+                                        departments.name AS Department
+                                FROM employees 
+                                    LEFT JOIN roles ON employees.role_id = roles.id
+                                    LEFT JOIN departments ON roles.department_id = departments.id
+                                    LEFT JOIN employees manager ON employees.manager_id = manager.id
+                                    WHERE CONCAT(manager.first_name, ' ', manager.last_name) = ?;`, [targetManager])
+                                    .then( ([results]) => {
+                                        console.table(results);
+                                        return returnMenu(); 
+                                    }) 
+            } else if (response.viewMenu === "Employees by Department"){
+                let targetDepartment = response.viewEmpByDept;
+                connection.promise().query(`SELECT employees.id AS ID,
+                                        CONCAT(employees.first_name, ' ', employees.last_name) AS Name,
+                                        roles.title AS Role,
+                                        roles.salary AS Salary,
+                                        CONCAT(manager.first_name, ' ', manager.last_name) AS Manager,
+                                        departments.name AS Department
+                                FROM employees 
+                                    LEFT JOIN roles ON employees.role_id = roles.id
+                                    LEFT JOIN departments ON roles.department_id = departments.id
+                                    LEFT JOIN employees manager ON employees.manager_id = manager.id
+                                    WHERE departments.name = ?;`, [targetDepartment])
+                                    .then( ([results]) => {
+                                        console.table(results);
+                                        return returnMenu(); 
+                                    }) 
+            } else if (response.viewMenu === "Total Utilized Budget"){
+                connection.promise().query(`SELECT SUM(roles.salary) AS Utilized_Budget,
+                                                    departments.name AS Department
+                                            FROM employees 
+                                                LEFT JOIN roles ON employees.role_id = roles.id
+                                                LEFT JOIN departments ON roles.department_id = departments.id
+                                                GROUP BY departments.name
+                                                ORDER BY Utilized_Budget;`)
+                                    .then( ([results]) => {
+                                        console.table(results);
+                                        return returnMenu(); 
+                                    })   
+            } else if (response.viewMenu === "Main Menu"){
+                startMenu();
+            }
         });
     };
 // DELETE FUNCTIONS
-
-// EXIT FUNCTION
-    const exitMenu = () => {
-        console.log(`
-        ===========================
-        THANK YOU. HAVE A NICE DAY!
-        ===========================
-        `);
-        process.exit();
+    // DELETE RECORDS
+    const deleteMenu = () => {
+        return inquirer.prompt([
+            { // DELETE LOGIC
+                type: "list",
+                name: "deleteMenu",
+                message: "What type of record would you like to delete?",
+                choices: ["Department", "Role", "Employee", "Main Menu"]
+            }
+        ])
+        .then(response => {
+            if (response.deleteMenu === "Department"){
+                deleteDept();
+            } else if (response.deleteMenu === "Role"){
+                deleteRole();
+            } else if (response.deleteMenu === "Employee"){
+                deleteEmployee();
+            } else if (response.deleteMenu === "Main Menu"){
+                startMenu();
+            }
+        })
     };
-
-
-
-
+    // DELETE DEPARTMENT
+    const deleteDept = () => {
+        return inquirer.prompt([
+            { // DELETE CONFIRM
+                type: "list",
+                name: "deleteConfirmDept",
+                message: "Are you sure you'd like to delete a department? This action cannot be undone.",
+                choices: ["Yes", "No"]
+            },
+            { // DELETE DEPARTMENT
+                type: "list",
+                name: "deleteDeptSelection",
+                message: "What department would you like to delete?",
+                choices: deptOpts(),
+                when: function(responses) {
+                    return responses.deleteConfirmDept === "Yes";
+                }
+            }
+        ])
+        .then(response => {
+            if (response.deleteConfirmDept === "Yes"){
+                let targetDept = response.deleteDeptSelection;
+                connection.query(`DELETE FROM departments WHERE name = ?;`, [targetDept]);
+                console.log("You deleted the " + targetDept + " department");
+                return returnMenu();
+            } else if (response.deleteConfirmDept === "No"){
+                return returnMenu();
+            }
+        })
+    };
+    // DELETE ROLE
+    const deleteRole = () => {
+        return inquirer.prompt([
+            { // DELETE CONFIRM
+                type: "list",
+                name: "deleteConfirmRole",
+                message: "Are you sure you'd like to delete a role? This action cannot be undone.",
+                choices: ["Yes", "No"]
+            },
+            { // DELETE ROLE
+                type: "list",
+                name: "deleteRoleSelection",
+                message: "What role do you want to delete?",  
+                choices: roleOpts(),          
+                when: function(responses) {
+                    return responses.deleteConfirmRole === "Yes";
+                }
+            }
+        ])
+        .then(response => {
+            if (response.deleteConfirmRole === "Yes"){
+                let targetRole = response.deleteRoleSelection;
+                connection.query(`DELETE FROM roles WHERE title = ?;`, [targetRole]);
+                console.log("You deleted the " + targetRole + " role");
+                return returnMenu();
+            } else if (response.deleteConfirmRole === "No"){
+                return returnMenu();
+            }
+        })
+    };
+    // DELETE EMPLOYEE
+    const deleteEmployee = () => {
+        return inquirer.prompt([
+            { // DELETE CONFIRM
+                type: "list",
+                name: "deleteConfirmEmp",
+                message: "Are you sure you'd like to delete an employee? This action cannot be undone.",
+                choices: ["Yes", "No"]
+            },
+            { // DELETE EMPLOYEE
+                type: "list",
+                name: "deleteEmpSelection",
+                message: "Which employee do you want to delete?",    
+                choices: empOpts(),        
+                when: function(responses) {
+                    return responses.deleteConfirmEmp === "Yes";
+                }
+            }
+        ])
+        .then(response => {
+            if (response.deleteConfirmEmp === "Yes"){
+                let targetEmployee = response.deleteEmpSelection;
+                connection.query(`DELETE FROM employees WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [targetEmployee]);
+                console.log("You deleted " + targetEmployee);
+                return returnMenu();
+            } else if (response.deleteConfirmEmp === "No"){
+                return returnMenu();
+            }
+        })
+    }; 
 // MAIN APPLICATION
     console.log(`
     ======================
@@ -460,69 +669,3 @@
     ======================
     `);
     startMenu();
-    
-
-
-
-
-
-
-
-
-
-
-
-
-// INQUIRE PROMPT TO DELETE RECORDS
-const deleteMenu = () => {
-    return inquirer.prompt([
-        { // DELETE LOGIC
-            type: "list",
-            name: "deleteMenu",
-            message: "What type of record would you like to delete?",
-            choices: ["Department", "Role", "Employee"]
-        }
-    ])
-};
-// INQUIRE PROMPT TO DELETE DEPARTMENT
-const deleteDept = () => {
-    return inquirer.prompt([
-        { // DELETE DEPARTMENT
-            type: "list",
-            name: "deleteDept",
-            message: "What department would you like to delete?",   
-            choices: deptOpts(),         
-            when: function(responses) {
-                return responses.deleteMenu === "Department";
-            }
-        }
-    ])
-};
-// INQUIRE PROMPT TO DELETE ROLE
-const deleteRole = () => {
-    return inquirer.prompt([
-        { // DELETE ROLE
-            type: "list",
-            name: "deleteRole",
-            message: "What role do you want to delete?",  
-            choices: roleOpts(),          
-            when: function(responses) {
-                return responses.deleteMenu === "Role";
-            }
-        }
-    ])
-};
-// INQUIRE PROMPT TO DELETE EMPLOYEE
-const deleteEmployee = () => {
-    return inquirer.prompt([
-        { // DELETE EMPLOYEE
-            type: "list",
-            name: "deleteEmployee",
-            message: "What employee do you want to delete?",    
-            choices: mngrOpts(),        
-            when: function(responses) {
-                return responses.deleteMenu === "Employee";
-            }
-        }
-    ])
-}; 
