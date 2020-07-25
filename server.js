@@ -2,6 +2,7 @@
     const inquirer = require("inquirer");
     const cTable = require('console.table');
     const connection = require('./db/database');
+const { response } = require("express");
 // GLOBAL FUNCTIONS
     // List of all department options
     const deptOpts = () => {
@@ -81,11 +82,14 @@
     };
 // EXIT FUNCTION
 const exitMenu = () => {
-    console.log(`
-    ===========================
-    THANK YOU. HAVE A NICE DAY!
-    ===========================
-    `);
+    console.log(
+`
+=============================================
+|      THANK YOU FOR FOR VISITING YOUR      |
+|      CONTENT MANAGEMENT SYSTEM (CMS)      |
+|             HAVE A NICE DAY!              |
+=============================================
+`);
     process.exit();
 };
 // CREATE FUNCTIONS
@@ -167,19 +171,30 @@ const exitMenu = () => {
             { // CREATE ROLE - DEPARTMENT_CHOICE
                 type: "list",
                 name: "createRoleDepartment",
-                message: "What Department does the role belong to?",
+                message: "What department does the new role belong to?",
                 choices: deptOpts()
             }
         ])
-        .then(responses => {
-            let department = deptOpts().indexOf(responses.createRoleDepartment) + 1
-            let post = {title: responses.createRoleTitle,
-                        salary: responses.createRoleSalary,
-                        department_id: department
-                        };
-            connection.query(`INSERT INTO roles SET ?`, post);
-            console.log(post.title + " was added as a new role!");
-            return returnMenu();
+        .then(response => {
+            const deptSelection = response.createRoleDepartment;
+            const salarySelection = response.createRoleSalary;
+            const roleSelection = response.createRoleTitle;
+            var deptID = '';
+            connection.promise().query(`SELECT * FROM departments;`, function (err, res) {
+                if (err) {throw err};
+                for (var i = 0; i < res.length; i++) {
+                    if (deptSelection === res[i].name){
+                    deptID = (res[i].id);
+                    }
+                }
+                let post = {title: roleSelection,
+                            salary: salarySelection,
+                            department_id: deptID
+                            };
+                        connection.query(`INSERT INTO roles SET ?`, post);
+                        console.log(post.title + " was added as a new role!");
+                        return returnMenu();
+            })
         })
     };        
     // CREATE EMPLOYEE
@@ -214,27 +229,49 @@ const exitMenu = () => {
             { // Create a new employee - ROLE
                 type: "list",
                 name: "createEmployeeRole",
-                message: "Which role will this employee be assigned?",
+                message: "Which role will this new employee be assigned?",
                 choices: roleOpts()
             },
             { // Create a new employee - MANAGER
                 type: "list",
                 name: "createEmployeeManager",
-                message: "Who will be this employee's manager?",
+                message: "Who will be this new employee's manager?",
                 choices: empOpts()
             }
         ])
-        .then(responses => {
-            let role = roleOpts().indexOf(responses.createEmployeeRole) + 1
-            let manager = empOpts().indexOf(responses.createEmployeeManager) + 1
-            let post = {first_name: responses.createEmployeeFirst,
-                        last_name: responses.createEmployeeLast,
-                        role_id: role,
-                        manager_id: manager
-                        };
-            connection.query(`INSERT INTO employees SET ?`, post);
-            console.log(post.first_name + " " + post.last_name + " was added as a new employee!");
-            return returnMenu();
+        .then(response => {
+            const empFirst = response.createEmployeeFirst;
+            const empLast = response.createEmployeeLast;
+            const empRole = response.createEmployeeRole;
+            const empMngr = response.createEmployeeManager;
+            var roleID = '';
+            var mngrID = '';
+
+            connection.promise().query(`SELECT * FROM roles;`, function (err, res) {
+                if (err) {throw err};
+                for (var i = 0; i < res.length; i++) {
+                    if (empRole === res[i].title){
+                    roleID = (res[i].id);
+                    }
+                }
+                connection.promise().query(`SELECT * FROM employees;`, function (err, result) {
+                    if (err) {throw err};
+                    for (var i = 0; i < result.length; i++) {
+                        let resMngr = (result[i].first_name).concat(' ').concat(result[i].last_name)
+                        if (empMngr === resMngr){
+                            mngrID = (result[i].id);
+                        }
+                    }
+                    let post = {first_name: empFirst,
+                                last_name: empLast,
+                                role_id: roleID,
+                                manager_id: mngrID
+                                };
+                    connection.query(`INSERT INTO employees SET ?`, post);
+                    console.log(post.first_name + " " + post.last_name + " was added as a new employee!");
+                    return returnMenu();
+                })
+            })
         })
     }; 
 // UPDATE FUNCTIONS
@@ -266,7 +303,7 @@ const exitMenu = () => {
             { // UPDATE DEPT - NAME
                 type: "input",
                 name: "updateDepartmentName",
-                message: "What is the updated name of the Department?",
+                message: "What will the updated department name be?",
                 validate: updateDepartmentName => {
                     if (updateDepartmentName) {
                         return true;
@@ -279,7 +316,7 @@ const exitMenu = () => {
             { // UPDATE DEPT - CHOICE
                 type: "list",
                 name: "updateDepartment",
-                message: "What department do you want to update?",
+                message: "Which department should this update be assigned to?",
                 choices: deptOpts()
             }
         ])
@@ -303,15 +340,15 @@ const exitMenu = () => {
             { // UPDATE ROLE - TITLE
                 type: "input",
                 name: "updateRoleTitle",
-                message: "What is the updated title for this role?",            
+                message: "What is the updated title for the role?",            
                 when: function(responses) {
                     return responses.updateRoleList === "Title";
                 }
             },
             { // UPDATE DEPT - SALARY
-                type: "input",
+                type: "input",                                                                  // NUMERIC VALIDATION
                 name: "updateRoleSalary",
-                message: "What is the updated salary for this role?",            
+                message: "What is the updated salary for the role?",            
                 when: function(responses) {
                     return responses.updateRoleList === "Salary";
                 }
@@ -319,7 +356,7 @@ const exitMenu = () => {
             { // UPDATE DEPT - DEPARTMENT
                 type: "list",
                 name: "updateRoleDept",
-                message: "What is the updated department for this role?",  
+                message: "What is the updated department for the role?",  
                 choices: deptOpts(),          
                 when: function(responses) {
                     return responses.updateRoleList === "Department";
@@ -328,7 +365,7 @@ const exitMenu = () => {
             { // UPDATE ROLE - CHOICE
                 type: "list",
                 name: "updateRoleID",
-                message: "Which role would you like to save these updates for?",
+                message: "Which role should this update be assigned to?",
                 choices: roleOpts()
             }
         ])
@@ -345,12 +382,21 @@ const exitMenu = () => {
                 connection.query(`UPDATE roles SET roles.salary = ? WHERE title = ?;`, [newSalary, targetRole]);
                 console.log("For the " + targetRole + " role, you updated the salary to " + newSalary);
                 return returnMenu();
-            } else if (response.updateRoleList === "Department"){
+            } else if (response.updateRoleList === "Department"){            
                 let targetRole = response.updateRoleID;
                 let newDept = response.updateRoleDept;
-                connection.query(`UPDATE roles SET roles.department_id = ? WHERE title = ?;`, [newDept, targetRole]);
-                console.log("For the " + targetRole + " role, you updated the department to " + newDept);
-                return returnMenu();
+                var deptID = '';
+                connection.promise().query(`SELECT * FROM departments;`, function (err, res) {
+                    if (err) {throw err};
+                    for (var i = 0; i < res.length; i++) {
+                        if (newDept === res[i].name){
+                        deptID = (res[i].id);
+                        }
+                    }
+                    connection.query(`UPDATE roles SET roles.department_id = ? WHERE title = ?;`, [deptID, targetRole]);
+                    console.log("For the " + targetRole + " role, you updated the department to " + newDept);
+                    return returnMenu();
+                })
             }
         })
     };
@@ -400,7 +446,7 @@ const exitMenu = () => {
             { // UPDATE EMPLOYEE - CHOICE
                 type: "list",
                 name: "updateEmployeeID",
-                message: "Which employee do you want to update this record for?",
+                message: "Which employee should this update be assigned to?",
                 choices: empOpts()
             }
         ])
@@ -420,15 +466,34 @@ const exitMenu = () => {
             } else if (response.updateEmployeeList === "Role"){
                 let targetEmployee = response.updateEmployeeID;
                 let newRole = response.updateEmployeeRole;
-                connection.query(`UPDATE employees SET employees.role_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newRole, targetEmployee]);
-                console.log("You updated " + targetEmployee + "'s role to " + newRole);
-                return returnMenu();
-            } else if (response.updateEmployeeList === "Manager"){                                                                //// NOT SURE THIS WORKS
+                var roleID = '';
+                connection.promise().query(`SELECT * FROM roles;`, function (err, res) {
+                    if (err) {throw err};
+                    for (var i = 0; i < res.length; i++) {
+                        if (newRole === res[i].title){
+                            roleID = (res[i].id);
+                        }
+                    }
+                    connection.query(`UPDATE employees SET employees.role_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [roleID, targetEmployee]);
+                    console.log("You updated " + targetEmployee + "'s role to " + newRole);
+                    return returnMenu();
+                })
+            } else if (response.updateEmployeeList === "Manager"){                                                               
                 let targetEmployee = response.updateEmployeeID;
                 let newManager = response.updateEmployeeManager;
-                connection.query(`UPDATE employees SET employees.manager_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [newManager, targetEmployee]);
-                console.log("You updated " + targetEmployee + "'s manager to " + newManager);
-                return returnMenu();
+                var mngrID = '';
+                connection.promise().query(`SELECT * FROM employees;`, function (err, res) {
+                    if (err) {throw err};
+                    for (var i = 0; i < res.length; i++) {
+                        let resMngr = (res[i].first_name).concat(' ').concat(res[i].last_name)
+                        if (newManager === resMngr){
+                            mngrID = (res[i].id);
+                        }
+                    }
+                    connection.query(`UPDATE employees SET employees.manager_id = ? WHERE CONCAT(employees.first_name, ' ', employees.last_name) = ?;`, [mngrID, targetEmployee]);
+                    console.log("You updated " + targetEmployee + "'s manager to " + newManager);
+                    return returnMenu();
+                })
             }
         })
     };
@@ -445,7 +510,7 @@ const exitMenu = () => {
             { // EMPLOYEES BY MANAGER
                 type: "list",
                 name: "viewEmpByMngr",
-                message: "For which manager would you like to view the employees?",
+                message: "For which manager would you like to view assigned employees?",
                 choices: empOpts(),
                 when: function(responses) {
                     return responses.viewMenu === "Employees by Manager";
@@ -454,7 +519,7 @@ const exitMenu = () => {
             { // EMPLOYEES BY DEPARTMENT
                 type: "list",
                 name: "viewEmpByDept",
-                message: "For which department would you like to view the employees?",
+                message: "For which department would you like to view assigned employees?",
                 choices: deptOpts(),
                 when: function(responses) {
                     return responses.viewMenu === "Employees by Department";
@@ -663,9 +728,12 @@ const exitMenu = () => {
         })
     }; 
 // MAIN APPLICATION
-    console.log(`
-    ======================
-    EMPLOYEE TRACKER
-    ======================
-    `);
+    console.log(
+`
+=============================================
+|             WELCOME TO YOUR               |
+|      CONTENT MANAGEMENT SYSTEM (CMS)      |
+|     Let's manage your employee system!    |
+=============================================
+`);
     startMenu();
