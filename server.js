@@ -2,7 +2,6 @@
     const inquirer = require("inquirer");
     const cTable = require('console.table');
     const connection = require('./db/database');
-const { response } = require("express");
 // GLOBAL FUNCTIONS
     // List of all department options
     const deptOpts = () => {
